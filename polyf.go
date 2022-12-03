@@ -1,33 +1,56 @@
+// Generic point-in-polygon finder for large data sets.
 package polyf
 
-import "github.com/tidwall/geojson/geometry"
+import (
+	"errors"
 
-type item[T any] struct {
-	v    T
-	poly *geometry.Poly
+	"github.com/tidwall/geojson/geometry"
+)
+
+var ErrNotFound = errors.New("polyf: not found")
+
+type Item[T any] struct {
+	V    T
+	Poly *geometry.Poly
 }
 
 type F[T any] struct {
-	items []*item[T]
+	Items []*Item[T]
 }
 
 func (f *F[T]) Insert(poly *geometry.Poly, v T) {
-	f.items = append(f.items, &item[T]{
-		v:    v,
-		poly: poly,
+	f.Items = append(f.Items, &Item[T]{
+		V:    v,
+		Poly: poly,
 	})
 }
 
-func (f *F[T]) Contains(x float64, y float64) []T {
+func (f *F[T]) FindOne(x float64, y float64) (T, error) {
+	p := geometry.Point{
+		X: x,
+		Y: y,
+	}
+	for _, item := range f.Items {
+		if item.Poly.ContainsPoint(p) {
+			return item.V, nil
+		}
+	}
+	return *new(T), ErrNotFound
+}
+
+func (f *F[T]) FindAll(x float64, y float64) ([]T, error) {
 	res := make([]T, 0)
 	p := geometry.Point{
 		X: x,
 		Y: y,
 	}
-	for _, item := range f.items {
-		if item.poly.ContainsPoint(p) {
-			res = append(res, item.v)
+	for _, item := range f.Items {
+		if item.Poly.ContainsPoint(p) {
+			res = append(res, item.V)
 		}
 	}
-	return res
+	if len(res) == 0 {
+		return nil, ErrNotFound
+	}
+	return res, nil
 }
