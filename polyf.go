@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/tidwall/geojson/geometry"
+	"github.com/tidwall/rtree"
 )
 
 var ErrNotFound = errors.New("polyf: not found")
@@ -16,6 +17,20 @@ type Item[T any] struct {
 
 type F[T any] struct {
 	Items []*Item[T]
+	RTree *rtree.RTreeG[*Item[T]] // RTree
+}
+
+func (f *F[T]) SetupRTreeIndex() {
+	if f.RTree != nil {
+		return
+	}
+	tr := &rtree.RTreeG[*Item[T]]{}
+	for _, item := range f.Items {
+		minP := item.Poly.Exterior.Rect().Min
+		maxP := item.Poly.Exterior.Rect().Max
+		tr.Insert([2]float64{minP.X, minP.Y}, [2]float64{maxP.X, maxP.Y}, item)
+	}
+	f.RTree = tr
 }
 
 func (f *F[T]) Insert(poly *geometry.Poly, v T) {
@@ -53,4 +68,8 @@ func (f *F[T]) FindAll(x float64, y float64) ([]T, error) {
 		return nil, ErrNotFound
 	}
 	return res, nil
+}
+
+func (f *F[T]) FindAllWithRTRee(x float64, y float64) ([]T, error) {
+
 }
