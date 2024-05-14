@@ -26,17 +26,42 @@ func (f *F[T]) Insert(poly *geometry.Poly, v T) {
 	})
 }
 
-func (f *F[T]) FindOne(x float64, y float64) (T, error) {
+func (f *F[T]) FindOneWithPoly(x float64, y float64) (*Item[T], error) {
 	p := geometry.Point{
 		X: x,
 		Y: y,
 	}
 	for _, item := range f.Items {
 		if item.Poly.ContainsPoint(p) {
-			return item.V, nil
+			return item, nil
 		}
 	}
-	return *new(T), ErrNotFound
+	return nil, ErrNotFound
+}
+
+func (f *F[T]) FindOne(x float64, y float64) (T, error) {
+	res, err := f.FindOneWithPoly(x, y)
+	if err != nil {
+		return *new(T), err
+	}
+	return res.V, nil
+}
+
+func (f *F[T]) FindAllWithPoly(x float64, y float64) ([]*Item[T], error) {
+	res := make([]*Item[T], 0)
+	p := geometry.Point{
+		X: x,
+		Y: y,
+	}
+	for _, item := range f.Items {
+		if item.Poly.ContainsPoint(p) {
+			res = append(res, item)
+		}
+	}
+	if len(res) == 0 {
+		return nil, ErrNotFound
+	}
+	return res, nil
 }
 
 func (f *F[T]) FindAll(x float64, y float64) ([]T, error) {
@@ -74,6 +99,31 @@ func NewRFFromF[T any](f *F[T]) *RF[T] {
 	}
 }
 
+func (rf *RF[T]) FindOneWithPoly(x float64, y float64) (*Item[T], error) {
+	p := geometry.Point{
+		X: x,
+		Y: y,
+	}
+	var res *Item[T]
+	hit := false
+	rf.Tree.Search(
+		[2]float64{x, y},
+		[2]float64{x, y},
+		func(min, max [2]float64, data *Item[T]) bool {
+			if data.Poly.ContainsPoint(p) {
+				res = data
+				hit = true
+				return false
+			}
+			return true
+		},
+	)
+	if !hit {
+		return nil, ErrNotFound
+	}
+	return res, nil
+}
+
 func (rf *RF[T]) FindOne(x float64, y float64, xDiff float64, yDiff float64) (T, error) {
 	p := geometry.Point{
 		X: x,
@@ -95,6 +145,28 @@ func (rf *RF[T]) FindOne(x float64, y float64, xDiff float64, yDiff float64) (T,
 	)
 	if !hit {
 		return *new(T), ErrNotFound
+	}
+	return res, nil
+}
+
+func (rf *RF[T]) FindAllWithPoly(x float64, y float64) ([]*Item[T], error) {
+	res := make([]*Item[T], 0)
+	p := geometry.Point{
+		X: x,
+		Y: y,
+	}
+	rf.Tree.Search(
+		[2]float64{x, y},
+		[2]float64{x, y},
+		func(min, max [2]float64, data *Item[T]) bool {
+			if data.Poly.ContainsPoint(p) {
+				res = append(res, data)
+			}
+			return true
+		},
+	)
+	if len(res) == 0 {
+		return nil, ErrNotFound
 	}
 	return res, nil
 }
