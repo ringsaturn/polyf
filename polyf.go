@@ -99,7 +99,7 @@ func NewRFFromF[T any](f *F[T]) *RF[T] {
 	}
 }
 
-func (rf *RF[T]) FindOneWithPoly(x float64, y float64) (*Item[T], error) {
+func (rf *RF[T]) FindOneWithPoly(x float64, y float64, xDiff float64, yDiff float64) (*Item[T], error) {
 	p := geometry.Point{
 		X: x,
 		Y: y,
@@ -107,8 +107,8 @@ func (rf *RF[T]) FindOneWithPoly(x float64, y float64) (*Item[T], error) {
 	var res *Item[T]
 	hit := false
 	rf.Tree.Search(
-		[2]float64{x, y},
-		[2]float64{x, y},
+		[2]float64{x - xDiff, y - yDiff},
+		[2]float64{x + xDiff, y + yDiff},
 		func(min, max [2]float64, data *Item[T]) bool {
 			if data.Poly.ContainsPoint(p) {
 				res = data
@@ -149,15 +149,15 @@ func (rf *RF[T]) FindOne(x float64, y float64, xDiff float64, yDiff float64) (T,
 	return res, nil
 }
 
-func (rf *RF[T]) FindAllWithPoly(x float64, y float64) ([]*Item[T], error) {
+func (rf *RF[T]) FindAllWithPoly(x float64, y float64, xDiff float64, yDiff float64) ([]*Item[T], error) {
 	res := make([]*Item[T], 0)
 	p := geometry.Point{
 		X: x,
 		Y: y,
 	}
 	rf.Tree.Search(
-		[2]float64{x, y},
-		[2]float64{x, y},
+		[2]float64{x - xDiff, y - yDiff},
+		[2]float64{x + xDiff, y + yDiff},
 		func(min, max [2]float64, data *Item[T]) bool {
 			if data.Poly.ContainsPoint(p) {
 				res = append(res, data)
